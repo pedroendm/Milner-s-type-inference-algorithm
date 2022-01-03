@@ -52,7 +52,7 @@ applySubstitutionBasis s b = map (\(x, y) -> (x, applySubstitutionType s y)) b
 unifyEquation :: Type -> Type -> Substitution
 unifyEquation (TypeVariable id) t | not $ elem (TypeVariable id) (fvType t) = [((TypeVariable id), t)]
                                   | (TypeVariable id) == t                  = []
-                                  | otherwise                               = error "fail in unification"
+                                  | otherwise                               = error "failed unification"
 unifyEquation (Comp t1 t2) (TypeVariable id) = unifyEquation (TypeVariable id) (Comp t1 t2)
 unifyEquation (Comp t1 t2) (Comp t3 t4)      = let s1 = unifyEquation t2 t4
                                                in composeSubstitution s1 (unifyEquation (applySubstitutionType s1 t1) (applySubstitutionType s1 t3)) 
@@ -61,12 +61,12 @@ unifyEquations :: [(Type, Type)] -> Substitution
 unifyEquations [(t1, t2)]   = unifyEquation t1 t2 
 unifyEquations ((t1, t2):t) = unifyEquation t1 t2 ++ unifyEquations (map (\(x, y) -> (applySubstitutionType (unifyEquation t1 t2) x, applySubstitutionType (unifyEquation t1 t2) y))  t)
 
-generateEquationss :: [Term] -> Basis -> Basis -> [(Type, Type)]
-generateEquationss [] g1 g2     = []
-generateEquationss (v:vs) g1 g2 = let
-                                    d1 = fromJust $ lookup v g1
-                                    d2 = fromJust $ lookup v g2
-                                  in if d1 == d2 then generateEquationss vs g1 g2 else (d1, d2) : generateEquationss vs g1 g2 
+generateEquations :: [Term] -> Basis -> Basis -> [(Type, Type)]
+generateEquations [] g1 g2     = []
+generateEquations (v:vs) g1 g2 = let
+                                  d1 = fromJust $ lookup v g1
+                                  d2 = fromJust $ lookup v g2
+                                 in if d1 == d2 then generateEquations vs g1 g2 else (d1, d2) : generateEquations vs g1 g2 
 
 t :: Int -> Term -> (Int, Basis, Type)
 t c (TermVariable id)                = (c+1, [(TermVariable id, TypeVariable ("a" ++ show c))], TypeVariable ("a" ++ show c))
@@ -76,7 +76,7 @@ t c (Application m1 m2)              = let
                                          vs                = intersect (fvTerm m1) (fvTerm m2)
                                          g1                = filter (\(v,d) -> elem v vs) b_m1
                                          g2                = filter (\(v,d) -> elem v vs) b_m2
-                                         s                 = unifyEquations $ (generateEquationss vs g1 g2) ++ [(t_m1, Comp t_m2 (TypeVariable ("a" ++ show c'')))]
+                                         s                 = unifyEquations $ (generateEquations vs g1 g2) ++ [(t_m1, Comp t_m2 (TypeVariable ("a" ++ show c'')))]
                                        in (c'' + 1, applySubstitutionBasis s (b_m1++b_m2), applySubstitutionType s (TypeVariable ("a" ++ show c'')))
 t c (Abstraction (TermVariable x) n) = let 
                                          (c', b_n, t_n) = t c n
@@ -96,6 +96,7 @@ main = do
     let terms = ([ TermVariable "x",
                    Application (TermVariable "x") (TermVariable "y"),
                    Application (Abstraction (TermVariable "x") (TermVariable "x")) (TermVariable "y"),
+                   Application (TermVariable "x") (Application (TermVariable "y") (Application (TermVariable "z") (Application (TermVariable "w") (TermVariable "t")))),
                    Abstraction (TermVariable "x") (TermVariable "x"),
                    Abstraction (TermVariable "x") (TermVariable "y"),
                    Abstraction (TermVariable "x") (Abstraction (TermVariable "y") (Abstraction (TermVariable "z") (Application (TermVariable "x") (Application (TermVariable "y") (TermVariable "z"))))),
